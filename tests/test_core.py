@@ -1,7 +1,7 @@
 """Correctness checks for the Moser–Tardos Ramsey core. Run: python3 -m pytest -q"""
 from itertools import combinations
 import numpy as np
-from ramsey_mt.core import RamseyInstance, solve, edge_id, n_lll
+from core import RamseyInstance, solve, edge_id, n_lll
 
 
 def naive_mono(colours, n, k):

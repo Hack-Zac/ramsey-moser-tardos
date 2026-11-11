@@ -1,19 +1,4 @@
-"""Moser–Tardos for Ramsey colourings.
-
-Variables: the C(n,2) edge colours of K_n (0 = blue, 1 = red), each uniform.
-Bad events: for every k-subset S of vertices, "all C(k,2) edges inside S
-have the same colour".  Resampling S redraws the colours of its edges.
-
-Data layout (built once per (n, k) and reused across seeds):
-  ksets     (M, k)       vertex lists of the M = C(n,k) k-subsets
-  set_edges (M, C(k,2))  edge ids inside each k-subset
-  inc_ptr / inc_idx      CSR map: edge id -> k-subsets containing that edge
-
-During a run we keep, for every k-subset, the number of red edges inside it.
-A subset is violated (monochromatic) iff that count is 0 or C(k,2).
-Violated subsets live in an indexed set (vlist + vpos) giving O(1)
-insert / delete / random pick.
-"""
+"""Moser–Tardos for Ramsey colourings."""
 
 from itertools import combinations
 from math import comb
@@ -171,3 +156,71 @@ def n_lll(k):
             n = m
         else:
             return n
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers for local-search baselines (see baselines.py).
+#
+# A search "state" is five arrays:
+#   colours (int8, one per edge), red (int32, red-edge count per k-set),
+#   vlist / vpos (indexed set of bad k-sets), nv (int64 array of length 1:
+#   current number of bad k-sets).
+# All helpers are Numba-compiled, so call them from @njit code.
+# ---------------------------------------------------------------------------
+
+@njit(cache=True)
+def init_state(set_edges, colours):
+    """Build red counts and the bad-set index for a given colouring."""
+    M, E = set_edges.shape
+    red = np.zeros(M, dtype=np.int32)
+    for s in range(M):
+        c = 0
+        for j in range(E):
+            c += colours[set_edges[s, j]]
+        red[s] = c
+    vlist = np.empty(M, dtype=np.int32)
+    vpos = np.full(M, -1, dtype=np.int32)
+    nv = np.zeros(1, dtype=np.int64)
+    for s in range(M):
+        if red[s] == 0 or red[s] == E:
+            vpos[s] = nv[0]
+            vlist[nv[0]] = s
+            nv[0] += 1
+    return red, vlist, vpos, nv
+
+
+@njit(cache=True)
+def flip_delta(e, colours, red, inc_ptr, inc_idx, E):
+    """Change in the number of bad k-sets if edge e were flipped (no mutation)."""
+    step = -1 if colours[e] == 1 else 1
+    delta = 0
+    for q in range(inc_ptr[e], inc_ptr[e + 1]):
+        t = inc_idx[q]
+        was_bad = red[t] == 0 or red[t] == E
+        c = red[t] + step
+        is_bad = c == 0 or c == E
+        delta += (1 if is_bad else 0) - (1 if was_bad else 0)
+    return delta
+
+
+@njit(cache=True)
+def flip_edge(e, colours, red, vlist, vpos, nv, inc_ptr, inc_idx, E):
+    """Flip edge e, updating red counts and the bad-set index in place."""
+    step = -1 if colours[e] == 1 else 1
+    colours[e] = 1 - colours[e]
+    for q in range(inc_ptr[e], inc_ptr[e + 1]):
+        t = inc_idx[q]
+        was_bad = red[t] == 0 or red[t] == E
+        red[t] += step
+        is_bad = red[t] == 0 or red[t] == E
+        if was_bad and not is_bad:
+            p = vpos[t]
+            last = vlist[nv[0] - 1]
+            vlist[p] = last
+            vpos[last] = p
+            vpos[t] = -1
+            nv[0] -= 1
+        elif is_bad and not was_bad:
+            vpos[t] = nv[0]
+            vlist[nv[0]] = t
+            nv[0] += 1

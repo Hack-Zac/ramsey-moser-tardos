@@ -7,7 +7,7 @@ Moser–Tardos resampling algorithm. A success certifies R(k,k) > n.
     pip install -r requirements.txt
 
 ## Use
-    from ramsey_mt.core import solve, RamseyInstance, n_lll
+    from core import solve, RamseyInstance, n_lll
     r = solve(n=12, k=4, budget=10**6, seed=0, rule="random")
     # r: success, steps, min_bad_seen, step_of_min, time_ms, final_bad, colours
 
@@ -15,7 +15,10 @@ Selection rules: "random", "last" (most recently violated), "min_index".
 Reuse `RamseyInstance(n, k)` across seeds to avoid rebuilding the event structure.
 
 ## Experiments
-    python3 run_experiment.py --k 4 --n 5 17 --seeds 50 --budget 1000000 --out results/k4.csv
+    python3 run_experiment.py --method mt --k 4 --n 5 17 --seeds 50 --budget 1000000 --out results/k4_mt.csv
+
+Methods: `mt` (`--rule random|last|min_index`), `restart`, `greedy` (`--noise`),
+`annealing` (`--t0`, `--cooling`, `--t-min`).
 
 CSV schema (shared with the baselines):
     method,k,n,seed,budget,success,steps,min_bad_seen,step_of_min,time_ms
@@ -28,3 +31,6 @@ Includes a check that the Paley colouring of K_17 has no monochromatic K_4.
 Baselines should expose the same signature and return the same keys:
     solve(n, k, budget, seed) -> {success, steps, min_bad_seen, step_of_min, time_ms}
 `RamseyInstance.count_monochromatic(colours)` can be used to score any colouring.
+
+## Results
+`results.md` summarises the k = 4 and k = 5 baselines. CSVs are in `results/`.
