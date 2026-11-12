@@ -11,8 +11,8 @@ import csv
 import os
 from functools import partial
 
-import baselines
-from core import RamseyInstance, solve
+from ramsey_mt import baselines
+from ramsey_mt.core import RamseyInstance, solve
 
 FIELDS = ["method", "k", "n", "seed", "budget", "success", "steps",
           "min_bad_seen", "step_of_min", "time_ms"]

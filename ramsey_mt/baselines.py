@@ -4,7 +4,7 @@ import time
 import numpy as np
 from numba import njit
 
-from core import RamseyInstance, init_state, flip_delta, flip_edge
+from .core import RamseyInstance, init_state, flip_delta, flip_edge
 
 
 def _result(ok, steps, best, step_best, colours, final_bad, t0):
